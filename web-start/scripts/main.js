@@ -59,6 +59,7 @@ function isUserSignedIn() {
 function loadMessages() {
   var callback = function(snap) {
     var data = snap.val();
+    // TODO INSteaad we would setState to display things
     displayMessage(snap.key, data.name, data.text, data.profilePicUrl, data.imageUrl);
   }
   // on event foo get lst 12 stored at /bar/ and invoke cb
@@ -71,6 +72,10 @@ function loadMessages() {
 // push automaticall generates a key and adds to pushed objs path
 function saveMessage(messageText) {
   return firebase.database().ref('/messages/').push({
+    // TODO HERE WE WOULD PUSH to /scores or userId/scores with
+    // categ, date, correct/total, %, time,
+    // or maybe we just push to /messages and then if we want
+    // them for only 1 user, we filter all messsages for id of auth'd user 
     name: getUserName(),
     text: messageText,
     profilePicUrl: getProfilePicUrl()
