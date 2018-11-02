@@ -18,47 +18,95 @@
 // Signs-in Friendly Chat.
 function signIn() {
   // TODO 1: Sign in Firebase with credential from the Google user.
+  var provider = new firebase.auth.GoogleAuthProvider();
+  firebase.auth().signInWithPopup(provider);
 }
 
 // Signs-out of Friendly Chat.
 function signOut() {
   // TODO 2: Sign out of Firebase.
+  firebase.auth().signOut();
 }
 
 // Initiate firebase auth.
 function initFirebaseAuth() {
-  // TODO 3: Initialize Firebase.
+  // TODO 3: Initialize Firebase. with a callback for sign ins and outs
+  // that may show/hide accordingly
+  firebase.auth().onAuthStateChanged(authStateObserver);
 }
 
 // Returns the signed-in user's profile Pic URL.
 function getProfilePicUrl() {
   // TODO 4: Return the user's profile pic URL.
+  return firebase.auth().currentUser.photoURL || '/images/profile_placeholder.png';
 }
 
 // Returns the signed-in user's display name.
 function getUserName() {
   // TODO 5: Return the user's display name.
+  return firebase.auth().currentUser.displayName;
 }
 
 // Returns true if a user is signed-in.
 function isUserSignedIn() {
   // TODO 6: Return true if a user is signed-in.
+  return !!firebase.auth().currentUser;
 }
 
 // Loads chat messages history and listens for upcoming ones.
+// here we register listeners of data....
+// TODO 7: Load and listens for new messages.
 function loadMessages() {
-  // TODO 7: Load and listens for new messages.
+  var callback = function(snap) {
+    var data = snap.val();
+    displayMessage(snap.key, data.name, data.text, data.profilePicUrl, data.imageUrl);
+  }
+  // on event foo get lst 12 stored at /bar/ and invoke cb
+  firebase.database().ref('/messages/').limitToLast(12).on('child_added', callback);
+  firebase.database().ref('/messages/').limitToLast(12).on('child_changed', callback);
 }
 
 // Saves a new message on the Firebase DB.
+// TODO 8: Push a new message to Firebase
+// push automaticall generates a key and adds to pushed objs path
 function saveMessage(messageText) {
-  // TODO 8: Push a new message to Firebase.
+  return firebase.database().ref('/messages/').push({
+    name: getUserName(),
+    text: messageText,
+    profilePicUrl: getProfilePicUrl()
+  }).catch(function(error) {
+    console.error('Error writing new message to Firebase Database', error);
+  })
 }
 
 // Saves a new message containing an image in Firebase.
 // This first saves the image in Firebase storage.
+// non structured data like images are better stored in Cloud Storage for Firebase
+// not realtime database
 function saveImageMessage(file) {
-  // TODO 9: Posts a new image as a message.
+  // save with temp generic img
+  firebase.database().ref('/messages/').push({
+    name: getUserName(),
+    imageUrl: LOADING_IMAGE_URL,
+    profilePicUrl: getProfilePicUrl()
+  }).then(function(messageRef) {  // save rtns ref to saved message
+    // upload img to cloud storage
+    // path is user/mssg/filename
+    var filePath = firebase.auth().currentUser.uid + '/' + messageRef.key + '/' + file.name;
+    return firebase.storage().ref(filePath).put(file)
+      .then(function(fileSnapShot){
+        return fileSnapShot.ref.getDownloadURL()
+          .then((url) => {
+            // update temp img with url of actual
+            return messageRef.update({
+              imageUrl: url,
+              storageUri: fileSnapShot.metadata.fullPath
+            });
+          });
+      });
+  }).catch(function(error) {
+    console.error('There was an error uploading a file to Cloud Storage', error);
+  });
 }
 
 // Saves the messaging device token to the datastore.
